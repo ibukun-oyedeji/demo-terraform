@@ -47,15 +47,21 @@ resource "google_compute_address" "external_ip" {
   region = "us-central1"
 }
 
-# Create a VM instance
+# Generate SSH key pair
+resource "tls_private_key" "vm_ssh" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
+}
+
+# Create a VM instance with the generated SSH public key
 resource "google_compute_instance" "vm_instance" {
   name         = "my-vm"
-  machine_type = "n1-standard-1"
+  machine_type = "e2-micro"
   zone         = "us-central1-a"
 
   boot_disk {
     initialize_params {
-      image = "debian-cloud/debian-10"
+      image = "debian-cloud/debian-11"
     }
   }
 
@@ -69,7 +75,7 @@ resource "google_compute_instance" "vm_instance" {
   }
 
   metadata = {
-    ssh-keys = "your-ssh-username:${file("~/.ssh/id_rsa.pub")}"
+    ssh-keys = "your-ssh-username:${tls_private_key.vm_ssh.public_key_openssh}"
   }
 
   depends_on = [
@@ -79,7 +85,12 @@ resource "google_compute_instance" "vm_instance" {
   ]
 }
 
-# Outputs
-output "vm_external_ip" {
+# Outputs to retrieve the private key for SSH access
+output "vm_private_key" {
+  sensitive = true
+  value     = tls_private_key.vm_ssh.private_key_pem
+}
+
+output "vm_public_ip" {
   value = google_compute_address.external_ip.address
 }
