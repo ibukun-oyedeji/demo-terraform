@@ -24,14 +24,14 @@ resource "google_compute_subnetwork" "subnet" {
   network       = google_compute_network.vpc_network.name
 }
 
-# Firewall rule to allow SSH and ICMP traffic
-resource "google_compute_firewall" "allow-ssh-icmp" {
-  name    = "allow-ssh-icmp"
+# Firewall rule to allow HTTP, SSH, and ICMP traffic
+resource "google_compute_firewall" "allow-http-ssh-icmp" {
+  name    = "allow-http-ssh-icmp"
   network = google_compute_network.vpc_network.name
 
   allow {
     protocol = "tcp"
-    ports    = ["22"]
+    ports    = ["22", "80"]
   }
 
   allow {
@@ -53,7 +53,7 @@ resource "tls_private_key" "vm_ssh" {
   rsa_bits  = 2048
 }
 
-# Create a VM instance with the generated SSH public key
+# Create a VM instance with the generated SSH public key and NGINX setup
 resource "google_compute_instance" "vm_instance" {
   name         = "my-vm"
   machine_type = "e2-micro"
@@ -74,15 +74,39 @@ resource "google_compute_instance" "vm_instance" {
     }
   }
 
+  metadata_startup_script = <<-EOF
+    #!/bin/bash
+    apt-get update
+    apt-get install -y nginx
+    systemctl start nginx
+    systemctl enable nginx
+  EOF
+
   metadata = {
     ssh-keys = "your-ssh-username:${tls_private_key.vm_ssh.public_key_openssh}"
   }
 
   depends_on = [
     google_compute_subnetwork.subnet,
-    google_compute_firewall.allow-ssh-icmp,
+    google_compute_firewall.allow-http-ssh-icmp,
     google_compute_address.external_ip
   ]
+}
+
+# Cloud SQL (PostgreSQL) Instance
+resource "google_sql_database_instance" "sql_instance" {
+  name             = "my-sql-instance"
+  database_version = "POSTGRES_13"
+  region           = "us-central1"
+  settings {
+    tier = "db-f1-micro"
+  }
+}
+
+# Cloud SQL Database
+resource "google_sql_database" "my_database" {
+  name     = "myapp_db"
+  instance = google_sql_database_instance.sql_instance.name
 }
 
 # Outputs to retrieve the private key for SSH access
@@ -93,4 +117,8 @@ output "vm_private_key" {
 
 output "vm_public_ip" {
   value = google_compute_address.external_ip.address
+}
+
+output "cloud_sql_instance_name" {
+  value = google_sql_database_instance.sql_instance.name
 }
