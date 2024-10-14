@@ -3,26 +3,10 @@ provider "google" {
   region  = "us-central1"
 }
 
-# Create a GCS bucket for Terraform state
-resource "google_storage_bucket" "state_bucket" {
-  name     = "my-terraform-state-bucket"
-  location = "US"
-  
-  # Set bucket lifecycle policy to auto-delete objects after 365 days (optional)
-  lifecycle_rule {
-    action {
-      type = "Delete"
-    }
-    condition {
-      age = 365
-    }
-  }
-}
-
-# Terraform backend configuration to store the state file in the bucket
+# Terraform backend configuration to store the state file in a GCS bucket
 terraform {
   backend "gcs" {
-    bucket = google_storage_bucket.state_bucket.name
+    bucket = "my-unique-terraform-state-bucket"  # Manually specify a unique bucket name
     prefix = "terraform/state"
   }
 }
