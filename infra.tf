@@ -55,7 +55,7 @@ resource "tls_private_key" "vm_ssh" {
 
 # Create a VM instance with the generated SSH public key and NGINX setup
 resource "google_compute_instance" "vm_instance" {
-  name         = "my-vm"
+  name         = "ibk-vm"
   machine_type = "e2-micro"
   zone         = "us-central1-a"
 
